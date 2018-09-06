@@ -33,6 +33,37 @@ import templar
 import utils
 
 
+def pxe_gethostbyname_ex(hostname):
+    v4_addr = []
+    v6_addr = []
+    for (family, socktype, proto, canonname, sockaddr) in (
+        socket.getaddrinfo(hostname, 'http', 0, socket.SOCK_STREAM)
+    ):
+        if family == socket.AF_INET:
+            v4_addr.append(sockaddr[0])
+        elif family == socket.AF_INET6:
+            v6_addr.append(sockaddr[0])
+    # ---
+
+    if v6_addr:
+        return (socket.AF_INET6, v6_addr[0])
+    elif v4_addr:
+        return (socket.AF_INET, v4_addr[0])
+    else:
+        raise RuntimeError("cannot get ip addr")
+# --- end of pxe_gethostbyname_ex (...) ---
+
+
+def pxe_gethostbyname_ex_url(hostname):
+    family, addr = pxe_gethostbyname_ex(hostname)
+
+    if family == socket.AF_INET6:
+        return "[%s]" % (addr, )
+    else:
+        return addr
+# --- end of pxe_gethostbyname_ex_url (...) ---
+
+
 class TFTPGen:
     """
     Generate files provided by TFTP server
@@ -707,7 +738,7 @@ class TFTPGen:
             # FIXME: need to make shorter rewrite rules for these URLs
 
             try:
-                ipaddress = socket.gethostbyname_ex(blended["http_server"])[2][0]
+                ipaddress = pxe_gethostbyname_ex_url(blended["http_server"])
             except socket.gaierror:
                 ipaddress = blended["http_server"]
             URL_REGEX = "[a-zA-Z]*://.*"
